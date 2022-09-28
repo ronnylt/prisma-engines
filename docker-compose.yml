@@ -115,7 +115,7 @@ services:
       - databases
 
   mysql-5-6:
-    image: mysql:5.6.50
+    image: mysql:5.6.51
     command: mysqld
     restart: always
     platform: linux/x86_64
