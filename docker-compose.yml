@@ -130,7 +130,7 @@ services:
     tmpfs: /var/lib/mysql
 
   mysql-5-7:
-    image: mysql:5.7.32
+    image: mysql:5.7.41
     command: mysqld
     restart: always
     platform: linux/x86_64
