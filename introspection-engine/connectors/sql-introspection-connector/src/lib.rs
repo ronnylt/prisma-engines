@@ -33,7 +33,6 @@ mod pair;
 mod rendering;
 mod sanitize_datamodel_names;
 mod schema_describer_loading;
-mod version_checker;
 mod warnings;
 
 use datamodel_calculator::DatamodelCalculatorContext;

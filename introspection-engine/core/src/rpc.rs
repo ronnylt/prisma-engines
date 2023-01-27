@@ -136,7 +136,6 @@ impl RpcImpl {
             Ok(IntrospectionResultOutput {
                 datamodel: introspection_result.data_model,
                 warnings: introspection_result.warnings,
-                version: introspection_result.version,
             })
         }
     }

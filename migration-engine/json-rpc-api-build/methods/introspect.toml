@@ -30,9 +30,6 @@ shape = "string"
 shape = "introspectionWarning"
 isList = true
 
-[recordShapes.introspectResult.fields.version]
-shape = "string"
-
 [recordShapes.introspectionWarning]
 
 [recordShapes.introspectionWarning.fields.code]

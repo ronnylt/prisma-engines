@@ -50,8 +50,6 @@ pub struct IntrospectionResult {
     pub is_empty: bool,
     /// Introspection warnings
     pub warnings: Vec<Warning>,
-    /// Inferred Prisma version
-    pub version: Version,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -67,8 +65,6 @@ pub struct IntrospectionResultOutput {
     pub datamodel: String,
     /// warnings
     pub warnings: Vec<Warning>,
-    /// version
-    pub version: Version,
 }
 
 pub struct IntrospectionContext {

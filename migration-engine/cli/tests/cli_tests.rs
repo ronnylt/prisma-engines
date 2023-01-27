@@ -569,7 +569,7 @@ fn introspect_postgres(api: TestApi) {
         stdout.read_line(&mut response).unwrap();
 
         let expected = expect![[r#"
-            {"jsonrpc":"2.0","result":{"datamodel":"datasource db {\n  provider = \"postgres\"\n  url      = env(\"TEST_DATABASE_URL\")\n}\n\nmodel A {\n  id   Int     @id @default(autoincrement())\n  data String?\n}\n","version":"Prisma11","warnings":[]},"id":1}
+            {"jsonrpc":"2.0","result":{"datamodel":"datasource db {\n  provider = \"postgres\"\n  url      = env(\"TEST_DATABASE_URL\")\n}\n\nmodel A {\n  id   Int     @id @default(autoincrement())\n  data String?\n}\n","warnings":[]},"id":1}
         "#]];
 
         expected.assert_eq(&response);
@@ -621,6 +621,6 @@ fn introspect_e2e() {
 
         dbg!("response: {:?}", &response);
 
-        assert!(response.starts_with(r##"{"jsonrpc":"2.0","result":{"datamodel":"datasource db {\n  provider = \"sqlite\"\n  url      = env(\"TEST_DATABASE_URL\")\n}\n","version":"NonPrisma","warnings":[]},"##));
+        assert!(response.starts_with(r##"{"jsonrpc":"2.0","result":{"datamodel":"datasource db {\n  provider = \"sqlite\"\n  url      = env(\"TEST_DATABASE_URL\")\n}\n","warnings":[]},"##));
     });
 }

@@ -8,7 +8,7 @@ pub use test_setup::{BitFlags, Capabilities, Tags};
 use crate::{BarrelMigrationExecutor, Result};
 use introspection_connector::{
     CompositeTypeDepth, ConnectorResult, DatabaseMetadata, IntrospectionConnector, IntrospectionContext,
-    IntrospectionResult, Version,
+    IntrospectionResult,
 };
 use migration_connector::{ConnectorParams, MigrationConnector};
 use psl::Configuration;
@@ -188,13 +188,6 @@ impl TestApi {
         let introspection_result = self.test_introspect_internal(data_model, false).await?;
 
         Ok(serde_json::to_string(&introspection_result.warnings)?)
-    }
-
-    pub async fn introspect_version(&self) -> Result<Version> {
-        let previous_schema = psl::validate(self.pure_config().into());
-        let introspection_result = self.test_introspect_internal(previous_schema, false).await?;
-
-        Ok(introspection_result.version)
     }
 
     pub async fn introspection_warnings(&self) -> Result<String> {

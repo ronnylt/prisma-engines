@@ -3,7 +3,7 @@ mod statistics;
 
 use datamodel_renderer as render;
 use futures::TryStreamExt;
-use introspection_connector::{CompositeTypeDepth, IntrospectionContext, IntrospectionResult, Version};
+use introspection_connector::{CompositeTypeDepth, IntrospectionContext, IntrospectionResult};
 use mongodb::{
     bson::{doc, Document},
     options::AggregateOptions,
@@ -63,6 +63,5 @@ pub(super) async fn sample(
         data_model: psl::reformat(&psl_string, 2).unwrap(),
         is_empty: data_model.is_empty(),
         warnings,
-        version: Version::NonPrisma,
     })
 }

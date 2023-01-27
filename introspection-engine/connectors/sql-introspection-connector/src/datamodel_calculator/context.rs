@@ -2,9 +2,9 @@ use crate::{
     introspection_helpers::{is_new_migration_table, is_old_migration_table, is_prisma_join_table, is_relay_table},
     introspection_map::{IntrospectionMap, RelationName},
     pair::{EnumPair, ModelPair, Pair, RelationFieldDirection, ViewPair},
-    version_checker, EnumVariantName, IntrospectedName, ModelName, SqlFamilyTrait,
+    EnumVariantName, IntrospectedName, ModelName, SqlFamilyTrait,
 };
-use introspection_connector::{IntrospectionContext, Version};
+use introspection_connector::IntrospectionContext;
 use psl::{
     builtin_connectors::*,
     datamodel_connector::Connector,
@@ -20,7 +20,6 @@ pub(crate) struct DatamodelCalculatorContext<'a> {
     pub(crate) render_config: bool,
     pub(crate) sql_schema: &'a sql::SqlSchema,
     pub(crate) sql_family: SqlFamily,
-    pub(crate) version: Version,
     pub(crate) previous_schema: &'a psl::ValidatedSchema,
     pub(crate) introspection_map: IntrospectionMap<'a>,
     pub(crate) force_namespaces: Option<&'a [String]>,
@@ -29,7 +28,6 @@ pub(crate) struct DatamodelCalculatorContext<'a> {
 impl<'a> DatamodelCalculatorContext<'a> {
     pub(crate) fn new(ctx: &'a IntrospectionContext, sql_schema: &'a sql::SqlSchema) -> Self {
         let mut ctx = DatamodelCalculatorContext {
-            version: Version::NonPrisma,
             config: ctx.configuration(),
             render_config: ctx.render_config,
             sql_schema,
@@ -40,7 +38,6 @@ impl<'a> DatamodelCalculatorContext<'a> {
         };
 
         ctx.introspection_map = IntrospectionMap::new(&ctx);
-        ctx.version = version_checker::check_prisma_version(&ctx);
 
         ctx
     }
