@@ -194,13 +194,18 @@ impl From<CoreError> for user_facing_errors::Error {
                         })
                     }
                     _ => user_facing_errors::KnownError::new(user_facing_errors::query_engine::QueryValidationFailed {
-                        query_validation_error: format!("{}", query_parser_error.error_kind()),
-                        query_position: format!("{}", query_parser_error.path()),
+                        query_validation_error: format!("{}", error_kind),
+                        query_position: format!("{}", path),
                     }),
                 };
 
                 known_error.into()
             }
+
+            CoreError::QueryParserError(QueryParserError::Structured(se))
+            | CoreError::QueryGraphBuilderError(QueryGraphBuilderError::QueryParserError(
+                QueryParserError::Structured(se),
+            )) => user_facing_errors::KnownError::new(se).into(),
 
             CoreError::QueryGraphBuilderError(QueryGraphBuilderError::MissingRequiredArgument {
                 argument_name,
@@ -304,7 +309,7 @@ impl From<CoreError> for user_facing_errors::Error {
                 inner_error
             }
 
-            _ => user_facing_errors::Error::from_dyn_error(&err),
+            _ => user_facing_errors::Error::to_unknown(&err),
         }
     }
 }
