@@ -25,11 +25,11 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
             TypeIdentifier::Json if supports_advanced_json => {
                 let enum_type = InputType::enum_type(json_null_input_enum(ctx, !sf.is_required()));
 
-                input_field(sf.name(), vec![enum_type, typ], sf.default_value().cloned())
+                input_field(sf.name(), vec![enum_type, typ], sf.default_value())
                     .optional_if(!sf.is_required() || sf.default_value().is_some() || sf.is_updated_at())
             }
 
-            _ => input_field(sf.name(), typ, sf.default_value().cloned())
+            _ => input_field(sf.name(), typ, sf.default_value())
                 .optional_if(!sf.is_required() || sf.default_value().is_some() || sf.is_updated_at())
                 .nullable_if(!sf.is_required()),
         }
@@ -59,7 +59,7 @@ impl DataInputFieldMapper for CreateDataInputFieldMapper {
         let input_type = InputType::object(input_object);
 
         // Shorthand type (`list_field: <typ>`) + full object (`list_field: { set: { <typ> }}`)
-        input_field(sf.name(), vec![input_type, typ], sf.default_value().cloned()).optional()
+        input_field(sf.name(), vec![input_type, typ], sf.default_value()).optional()
     }
 
     fn map_relation(&self, ctx: &mut BuilderContext, rf: &RelationFieldRef) -> InputField {

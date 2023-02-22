@@ -86,15 +86,16 @@ impl Fields {
         let model = self.model();
         let internal_data_model = model.internal_data_model();
         let model_walker = internal_data_model.walk(model.id);
-        model_walker
-            .scalar_fields()
-            .map(|w| Field::from((internal_data_model.clone(), w)))
-            .chain(
-                model_walker
-                    .relation_fields()
-                    .map(|w| Field::from((internal_data_model.clone(), w))),
-            )
+        let mut scalar_fields = model_walker.scalar_fields();
+        let mut relation_fields = model_walker.relation_fields();
+        scalar_fields
             .find(|f| f.name() == prisma_name)
+            .map(|w| Field::from((internal_data_model.clone(), w)))
+            .or_else(|| {
+                relation_fields
+                    .find(|f| f.name() == prisma_name)
+                    .map(|w| Field::from((internal_data_model.clone(), w)))
+            })
             .ok_or_else(|| DomainError::FieldNotFound {
                 name: prisma_name.to_string(),
                 container_name: self.model().name.clone(),
@@ -140,20 +141,10 @@ impl Fields {
             })
     }
 
-    fn scalar_filter(mut acc: Vec<ScalarFieldWeak>, field: &Field) -> Vec<ScalarFieldWeak> {
-        if let Field::Scalar(scalar_field) = field {
-            acc.push(scalar_field.clone());
-        };
-
-        acc
-    }
-
     pub fn filter_all<P>(&self, predicate: P) -> Vec<Field>
     where
         P: Fn(&&Field) -> bool,
     {
-        let model = self.model();
-        let internal_data_model = model.internal_data_model();
         let model = self.model();
         let internal_data_model = model.internal_data_model();
         let model_walker = internal_data_model.walk(model.id);
@@ -166,7 +157,7 @@ impl Fields {
                     .filter(|rf| !rf.relation().is_ignored())
                     .map(|w| Field::from((internal_data_model.clone(), w))),
             )
-            .filter(|f| predicate(&&f))
+            .filter(|f| predicate(&f))
             .collect()
     }
 }

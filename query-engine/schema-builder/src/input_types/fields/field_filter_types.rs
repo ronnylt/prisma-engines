@@ -43,7 +43,7 @@ pub(crate) fn get_field_filter_types(
             let mut types = vec![InputType::object(full_scalar_filter_type(
                 ctx,
                 &sf.type_identifier(),
-                sf.native_type(),
+                sf.native_type().as_ref(),
                 sf.is_list(),
                 !sf.is_required(),
                 false,

@@ -10,7 +10,6 @@ pub struct ModelBuilder {
     pub name: String,
     pub manifestation: Option<String>,
     pub indexes: Vec<IndexBuilder>,
-    pub supports_create_operation: bool,
     pub dml_model: dml::Model,
 }
 
@@ -25,11 +24,10 @@ impl ModelBuilder {
             primary_identifier: OnceCell::new(),
             dml_model: self.dml_model,
             internal_data_model,
-            supports_create_operation: self.supports_create_operation,
         });
 
         let primary_key = {
-            let dm = internal_data_model.upgrade().unwrap();
+            let dm = model.internal_data_model.upgrade().unwrap();
             schema.db.walk(model.id).primary_key().map(|pk| crate::pk::PrimaryKey {
                 alias: pk.name().map(ToOwned::to_owned),
                 fields: pk

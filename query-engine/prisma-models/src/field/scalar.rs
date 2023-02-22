@@ -50,12 +50,9 @@ impl ScalarField {
 
     pub fn unique(&self) -> bool {
         match self.id {
-            ScalarFieldId::InModel(id) => {
-                let walker = self.dm.walk(id);
-            },
-            ScalarFieldId::InCompositeType(id) => todo!(),
+            ScalarFieldId::InModel(id) => self.dm.walk(id).is_unique(),
+            ScalarFieldId::InCompositeType(_) => false, // TODO: is this right?
         }
-        self.is_unique || self.is_id()
     }
 
     pub fn db_name(&self) -> &str {
@@ -66,7 +63,7 @@ impl ScalarField {
     }
 
     pub fn type_identifier_with_arity(&self) -> (TypeIdentifier, FieldArity) {
-        (self.type_identifier.clone(), self.arity)
+        (self.type_identifier(), self.arity())
     }
 
     pub fn is_read_only(&self) -> bool {
@@ -86,24 +83,29 @@ impl ScalarField {
 
     pub fn container(&self) -> ParentContainer {
         match self.id {
-            ScalarFieldId::InModel(_) => todo!(),
-            ScalarFieldId::InCompositeType(_) => todo!(),
+            ScalarFieldId::InModel(id) => self.dm.find_model_by_id(self.dm.walk(id).model().id).into(),
+            ScalarFieldId::InCompositeType((id, _)) => self.dm.find_composite_type_by_id(id).into(),
         }
     }
 
     pub fn name(&self) -> &str {
-        self.name.as_ref()
+        match self.id {
+            ScalarFieldId::InModel(id) => self.dm.walk(id).name(),
+            ScalarFieldId::InCompositeType(id) => self.dm.walk(id).name(),
+        }
     }
 
     pub fn type_identifier(&self) -> TypeIdentifier {
-        match self.id {
-            ScalarFieldId::InModel(id) => match self.dm.walk(id).scalar_field_type() {
-                ScalarFieldType::CompositeType(_) => unreachable!(),
-                ScalarFieldType::Enum(x) => TypeIdentifier::Enum(x),
-                ScalarFieldType::BuiltInScalar(scalar) => scalar.into(),
-                ScalarFieldType::Unsupported(_) => TypeIdentifier::Unsupported,
-            },
-            ScalarFieldId::InCompositeType(_) => todo!(),
+        let scalar_field_type = match self.id {
+            ScalarFieldId::InModel(id) => self.dm.walk(id).scalar_field_type(),
+            ScalarFieldId::InCompositeType(id) => self.dm.walk(id).r#type(),
+        };
+
+        match scalar_field_type {
+            ScalarFieldType::CompositeType(_) => unreachable!(),
+            ScalarFieldType::Enum(x) => TypeIdentifier::Enum(x),
+            ScalarFieldType::BuiltInScalar(scalar) => scalar.into(),
+            ScalarFieldType::Unsupported(_) => TypeIdentifier::Unsupported,
         }
     }
 
@@ -115,11 +117,30 @@ impl ScalarField {
     }
 
     pub fn internal_enum(&self) -> Option<crate::InternalEnum> {
-        self.internal_enum.map(|id| self.internal_data_model().zip(id))
+        let enum_id = match self.id {
+            ScalarFieldId::InModel(id) => self.dm.walk(id).scalar_field_type().as_enum(),
+            ScalarFieldId::InCompositeType(id) => self.dm.walk(id).r#type().as_enum(),
+        }?;
+        Some(self.dm.clone().zip(enum_id))
     }
 
-    pub fn default_value(&self) -> Option<&DefaultValue> {
-        self.default_value.as_ref()
+    pub fn default_value(&self) -> Option<DefaultValue> {
+        match self.id {
+            ScalarFieldId::InModel(id) => {
+                let walker = self.dm.walk(id);
+                walker.default_value().map(|dv| DefaultValue {
+                    kind: dml::dml_default_kind(&dv.ast_attribute().arguments.arguments[0].value, walker.scalar_type()),
+                    db_name: None,
+                })
+            }
+            ScalarFieldId::InCompositeType(id) => {
+                let walker = self.dm.walk(id);
+                walker.default_value().map(|dv| DefaultValue {
+                    kind: dml::dml_default_kind(&dv, walker.scalar_type()),
+                    db_name: None,
+                })
+            }
+        }
     }
 
     pub fn is_updated_at(&self) -> bool {
@@ -130,7 +151,18 @@ impl ScalarField {
     }
 
     pub fn is_auto_generated_int_id(&self) -> bool {
-        self.is_auto_generated_int_id
+        match self.id {
+            ScalarFieldId::InModel(id) => {
+                let walker = self.dm.walk(id);
+                walker.is_single_pk()
+                    && walker.is_autoincrement()
+                    && matches!(
+                        walker.scalar_type(),
+                        Some(psl::parser_database::ScalarType::Int) | Some(psl::parser_database::ScalarType::BigInt)
+                    )
+            }
+            ScalarFieldId::InCompositeType(_) => false,
+        }
     }
 
     pub fn native_type(&self) -> Option<NativeTypeInstance> {
