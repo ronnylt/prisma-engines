@@ -49,6 +49,12 @@ impl ScalarField {
     }
 
     pub fn unique(&self) -> bool {
+        match self.id {
+            ScalarFieldId::InModel(id) => {
+                let walker = self.dm.walk(id);
+            },
+            ScalarFieldId::InCompositeType(id) => todo!(),
+        }
         self.is_unique || self.is_id()
     }
 
