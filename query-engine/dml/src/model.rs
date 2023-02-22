@@ -359,19 +359,9 @@ impl Model {
         self.fields.iter()
     }
 
-    /// Gets a mutable  iterator over all fields.
-    pub fn fields_mut(&mut self) -> impl Iterator<Item = &mut Field> {
-        self.fields.iter_mut()
-    }
-
     /// Gets an iterator over all scalar fields.
     pub fn scalar_fields(&self) -> impl Iterator<Item = &ScalarField> {
         self.fields.iter()
-    }
-
-    /// Gets a mutable iterator over all scalar fields.
-    pub fn scalar_fields_mut(&mut self) -> impl Iterator<Item = &mut ScalarField> {
-        self.fields_mut()
     }
 
     /// Finds a field by name.
@@ -379,26 +369,9 @@ impl Model {
         self.fields().find(|f| f.name() == name)
     }
 
-    /// Finds a field by name and returns a mutable reference.
-    pub fn find_field_mut(&mut self, name: &str) -> &mut Field {
-        self.fields_mut().find(|f| f.name() == name).unwrap()
-    }
-
     /// Finds a scalar field by name.
     pub fn find_scalar_field(&self, name: &str) -> Option<&ScalarField> {
         self.scalar_fields().find(|f| f.name == *name)
-    }
-
-    pub fn has_field(&self, name: &str) -> bool {
-        self.find_field(name).is_some()
-    }
-
-    /// Finds a field by name and returns a mutable reference.
-    pub fn find_scalar_field_mut(&mut self, name: &str) -> &mut ScalarField {
-        let model_name = &self.name.clone();
-        self.scalar_fields_mut()
-            .find(|rf| rf.name == *name)
-            .unwrap_or_else(|| panic!("Could not find scalar field {name} on model {model_name}."))
     }
 
     /// This should match the logic in `prisma_models::Model::primary_identifier`.
@@ -413,18 +386,11 @@ impl Model {
     ///
     /// Used for: A Model must have at least one STRICT unique criteria.
     pub fn strict_unique_criterias(&self) -> Vec<UniqueCriterion> {
-        self.unique_criterias(false)
-    }
-
-    /// Optional unique fields are considered a unique criterion
-    ///
-    /// Used for: A relation must reference one LOOSE unique criteria. (optional fields are okay in this case)
-    pub fn loose_unique_criterias(&self) -> Vec<UniqueCriterion> {
-        self.unique_criterias(true)
+        self.unique_criterias()
     }
 
     /// Returns the order of unique criterias ordered based on their precedence
-    fn unique_criterias(&self, allow_optional: bool) -> Vec<UniqueCriterion> {
+    fn unique_criterias(&self) -> Vec<UniqueCriterion> {
         let mut result = Vec::new();
 
         // first candidate: primary key
@@ -454,7 +420,7 @@ impl Model {
                     })
                     .collect();
 
-                if !id_fields.is_empty() && !id_fields.iter().any(|f| f.is_optional() && !allow_optional) {
+                if !id_fields.is_empty() && !id_fields.iter().any(|f| f.is_optional()) {
                     result.push(UniqueCriterion::new(id_fields));
                 }
             }
@@ -476,7 +442,7 @@ impl Model {
                         .map(|name| self.find_scalar_field(name).unwrap())
                         .collect();
                     let all_fields_are_required = fields.iter().all(|f| f.is_required());
-                    (all_fields_are_required || allow_optional).then(|| UniqueCriterion::new(fields))
+                    all_fields_are_required.then(|| UniqueCriterion::new(fields))
                 })
                 .collect();
 

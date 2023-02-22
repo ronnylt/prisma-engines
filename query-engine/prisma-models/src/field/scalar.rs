@@ -116,7 +116,7 @@ impl ScalarField {
                 let walker = self.dm.walk(id);
                 walker
                     .default_value()
-                    .map(|dv| dml::dml_default_kind(&dv, walker.scalar_type()))
+                    .map(|dv| dml::dml_default_kind(dv, walker.scalar_type()))
             }
         }
     }
