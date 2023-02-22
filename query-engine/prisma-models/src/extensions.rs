@@ -62,7 +62,6 @@ impl ModelConverterUtilities for dml::Model {
 
 pub trait DatamodelFieldExtensions {
     fn type_identifier(&self) -> TypeIdentifier;
-    fn native_type(&self) -> Option<NativeTypeInstance>;
 }
 
 impl DatamodelFieldExtensions for dml::ScalarField {
@@ -73,13 +72,6 @@ impl DatamodelFieldExtensions for dml::ScalarField {
             dml::FieldType::Relation(_) => TypeIdentifier::String, // Todo: Unused
             dml::FieldType::Scalar(scalar, _) => (*scalar).into(),
             dml::FieldType::Unsupported(_) => TypeIdentifier::Unsupported,
-        }
-    }
-
-    fn native_type(&self) -> Option<NativeTypeInstance> {
-        match &self.field_type {
-            dml::FieldType::Scalar(_, nt) => nt.clone(),
-            _ => None,
         }
     }
 }
@@ -93,13 +85,6 @@ impl DatamodelFieldExtensions for dml::CompositeTypeField {
             dml::CompositeTypeFieldType::Scalar(scalar, _) => (*scalar).into(),
             dml::CompositeTypeFieldType::Enum(e) => TypeIdentifier::Enum(*e),
             dml::CompositeTypeFieldType::Unsupported(_) => TypeIdentifier::Unsupported,
-        }
-    }
-
-    fn native_type(&self) -> Option<NativeTypeInstance> {
-        match &self.r#type {
-            dml::CompositeTypeFieldType::Scalar(_, nt) => nt.clone(),
-            _ => None,
         }
     }
 }

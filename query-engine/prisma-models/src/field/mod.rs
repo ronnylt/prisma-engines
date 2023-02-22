@@ -3,12 +3,11 @@ mod relation;
 mod scalar;
 
 pub use composite::*;
-use psl::parser_database::walkers;
+use psl::parser_database::{walkers, ScalarType};
 pub use relation::*;
 pub use scalar::*;
 
 use crate::{ast, ModelRef};
-use dml::ScalarType;
 use std::{borrow::Cow, hash::Hash};
 
 pub type FieldWeak = Field;

@@ -1,6 +1,6 @@
 use crate::{ast, parent_container::ParentContainer, prelude::*};
 use dml::{DefaultValue, FieldArity, NativeTypeInstance};
-use psl::parser_database::walkers;
+use psl::parser_database::{walkers, ScalarFieldType};
 use std::fmt::{Debug, Display};
 
 pub type ScalarField = crate::Zipper<ScalarFieldId>;
@@ -41,11 +41,11 @@ impl ScalarField {
     }
 
     pub fn is_list(&self) -> bool {
-        matches!(self.arity, FieldArity::List)
+        matches!(self.arity(), FieldArity::List)
     }
 
     pub fn is_required(&self) -> bool {
-        matches!(self.arity, FieldArity::Required)
+        matches!(self.arity(), FieldArity::Required)
     }
 
     pub fn unique(&self) -> bool {
@@ -90,7 +90,15 @@ impl ScalarField {
     }
 
     pub fn type_identifier(&self) -> TypeIdentifier {
-        self.type_identifier.clone()
+        match self.id {
+            ScalarFieldId::InModel(id) => match self.dm.walk(id).scalar_field_type() {
+                ScalarFieldType::CompositeType(_) => unreachable!(),
+                ScalarFieldType::Enum(x) => TypeIdentifier::Enum(x),
+                ScalarFieldType::BuiltInScalar(scalar) => scalar.into(),
+                ScalarFieldType::Unsupported(_) => TypeIdentifier::Unsupported,
+            },
+            ScalarFieldId::InCompositeType(_) => todo!(),
+        }
     }
 
     pub fn arity(&self) -> FieldArity {
@@ -120,10 +128,20 @@ impl ScalarField {
     }
 
     pub fn native_type(&self) -> Option<NativeTypeInstance> {
-        match self.id {
-            ScalarFieldId::InModel(id) => todo!(),
-            ScalarFieldId::InCompositeType(id) => todo!(),
-        }
+        let (_, name, args, span) = match self.id {
+            ScalarFieldId::InModel(id) => self.dm.walk(id).raw_native_type(),
+            ScalarFieldId::InCompositeType(id) => self.dm.walk(id).raw_native_type(),
+        }?;
+        let connector = self.dm.schema.connector;
+
+        let nt = connector
+            .parse_native_type(name, args, span, &mut Default::default())
+            .unwrap();
+
+        Some(dml::NativeTypeInstance {
+            native_type: nt,
+            connector,
+        })
     }
 
     pub fn is_autoincrement(&self) -> bool {
@@ -136,6 +154,6 @@ impl ScalarField {
 
 impl Display for ScalarField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{}", self.container().name(), self.name)
+        write!(f, "{}.{}", self.container().name(), self.name())
     }
 }

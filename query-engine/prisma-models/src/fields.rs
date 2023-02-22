@@ -1,7 +1,6 @@
 use crate::pk::PrimaryKey;
 use crate::*;
-use once_cell::sync::OnceCell;
-use std::{collections::BTreeSet, sync::Arc};
+use std::collections::BTreeSet;
 
 #[derive(Debug, Clone)]
 pub struct Fields {
@@ -155,24 +154,19 @@ impl Fields {
     {
         let model = self.model();
         let internal_data_model = model.internal_data_model();
-        let rf = internal_data_model
-            .walk(model.id)
-            .relation_fields()
-            .filter(|rf| !rf.relation().is_ignored())
-            .map(|rf| Field::from(internal_data_model.clone().zip(rf.id)))
-            .filter(|f| predicate(&f));
-        let composite_type_fields = internal_data_model
-            .walk(model.id)
+        let model = self.model();
+        let internal_data_model = model.internal_data_model();
+        let model_walker = internal_data_model.walk(model.id);
+        model_walker
             .scalar_fields()
-            .filter(|sf| sf.scalar_field_type().as_composite_type().is_some())
-            .map(|sf| Field::from(internal_data_model.clone().zip(CompositeFieldId::InModel(sf.id))))
-            .filter(|f| predicate(&f));
-        self.all
-            .iter()
-            .filter(&predicate)
-            .map(Clone::clone)
-            .chain(rf)
-            .chain(composite_type_fields)
+            .map(|w| Field::from((internal_data_model.clone(), w)))
+            .chain(
+                model_walker
+                    .relation_fields()
+                    .filter(|rf| !rf.relation().is_ignored())
+                    .map(|w| Field::from((internal_data_model.clone(), w))),
+            )
+            .filter(|f| predicate(&&f))
             .collect()
     }
 }
