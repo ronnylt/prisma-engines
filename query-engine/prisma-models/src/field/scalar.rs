@@ -1,45 +1,43 @@
 use crate::{ast, parent_container::ParentContainer, prelude::*};
 use dml::{DefaultValue, FieldArity, NativeTypeInstance};
 use psl::parser_database::walkers;
-use std::{
-    fmt::{Debug, Display},
-    hash::{Hash, Hasher},
-    sync::{Arc, Weak},
-};
+use std::fmt::{Debug, Display};
 
-pub type ScalarFieldRef = Arc<ScalarField>;
-pub type ScalarFieldWeak = Weak<ScalarField>;
+pub type ScalarField = crate::Zipper<ScalarFieldId>;
+pub type ScalarFieldRef = ScalarField;
+pub type ScalarFieldWeak = ScalarField;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum ScalarFieldId {
     InModel(walkers::ScalarFieldId),
     InCompositeType((ast::CompositeTypeId, ast::FieldId)),
 }
 
-pub struct ScalarField {
-    pub id: ScalarFieldId,
-    pub(crate) name: String,
-    pub(crate) type_identifier: TypeIdentifier,
-    pub(crate) is_id: bool,
-    pub(crate) is_auto_generated_int_id: bool,
-    pub(crate) is_autoincrement: bool,
-    pub(crate) is_updated_at: bool,
-    pub(crate) internal_enum: Option<ast::EnumId>,
-    pub(crate) arity: FieldArity,
-    pub(crate) db_name: Option<String>,
-    pub(crate) default_value: Option<DefaultValue>,
-    pub(crate) native_type: Option<NativeTypeInstance>,
-    pub(crate) container: ParentContainer,
-    pub(crate) is_unique: bool,
-}
+// pub struct ScalarField {
+//     pub id: ScalarFieldId,
+//     pub(crate) name: String,
+//     pub(crate) type_identifier: TypeIdentifier,
+//     pub(crate) is_auto_generated_int_id: bool,
+//     pub(crate) is_autoincrement: bool,
+//     pub(crate) is_updated_at: bool,
+//     pub(crate) internal_enum: Option<ast::EnumId>,
+//     pub(crate) arity: FieldArity,
+//     pub(crate) db_name: Option<String>,
+//     pub(crate) default_value: Option<DefaultValue>,
+//     pub(crate) native_type: Option<NativeTypeInstance>,
+//     pub(crate) container: ParentContainer,
+// }
 
 impl ScalarField {
     pub fn internal_data_model(&self) -> InternalDataModelRef {
-        self.container.internal_data_model()
+        self.dm.clone()
     }
 
     pub fn is_id(&self) -> bool {
-        self.is_id
+        match self.id {
+            ScalarFieldId::InModel(id) => self.dm.walk(id).is_single_pk(),
+            ScalarFieldId::InCompositeType(_) => false,
+        }
     }
 
     pub fn is_list(&self) -> bool {
@@ -55,7 +53,10 @@ impl ScalarField {
     }
 
     pub fn db_name(&self) -> &str {
-        self.db_name.as_deref().unwrap_or(self.name.as_str())
+        match self.id {
+            ScalarFieldId::InModel(id) => self.dm.walk(id).database_name(),
+            ScalarFieldId::InCompositeType(id) => self.dm.walk(id).database_name(),
+        }
     }
 
     pub fn type_identifier_with_arity(&self) -> (TypeIdentifier, FieldArity) {
@@ -74,11 +75,14 @@ impl ScalarField {
     }
 
     pub fn is_numeric(&self) -> bool {
-        self.type_identifier.is_numeric()
+        self.type_identifier().is_numeric()
     }
 
-    pub fn container(&self) -> &ParentContainer {
-        &self.container
+    pub fn container(&self) -> ParentContainer {
+        match self.id {
+            ScalarFieldId::InModel(_) => todo!(),
+            ScalarFieldId::InCompositeType(_) => todo!(),
+        }
     }
 
     pub fn name(&self) -> &str {
@@ -90,7 +94,10 @@ impl ScalarField {
     }
 
     pub fn arity(&self) -> FieldArity {
-        self.arity
+        match self.id {
+            ScalarFieldId::InModel(id) => self.dm.walk(id).ast_field().arity,
+            ScalarFieldId::InCompositeType(id) => self.dm.walk(id).arity(),
+        }
     }
 
     pub fn internal_enum(&self) -> Option<crate::InternalEnum> {
@@ -102,76 +109,33 @@ impl ScalarField {
     }
 
     pub fn is_updated_at(&self) -> bool {
-        self.is_updated_at
+        match self.id {
+            ScalarFieldId::InModel(id) => self.dm.walk(id).is_updated_at(),
+            ScalarFieldId::InCompositeType(_) => false,
+        }
     }
 
     pub fn is_auto_generated_int_id(&self) -> bool {
         self.is_auto_generated_int_id
     }
 
-    pub fn native_type(&self) -> Option<&NativeTypeInstance> {
-        self.native_type.as_ref()
+    pub fn native_type(&self) -> Option<NativeTypeInstance> {
+        match self.id {
+            ScalarFieldId::InModel(id) => todo!(),
+            ScalarFieldId::InCompositeType(id) => todo!(),
+        }
     }
 
     pub fn is_autoincrement(&self) -> bool {
-        self.is_autoincrement
-    }
-}
-
-impl Debug for ScalarField {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ScalarField")
-            .field("name", &self.name)
-            .field("type_identifier", &self.type_identifier)
-            .field("is_id", &self.is_id)
-            .field("is_auto_generated_int_id", &self.is_auto_generated_int_id)
-            .field("is_autoincrement", &self.is_autoincrement)
-            .field("internal_enum", &self.internal_enum)
-            .field("is_updated_at", &self.is_updated_at)
-            .field("arity", &self.arity)
-            .field("db_name", &self.db_name)
-            .field("default_value", &self.default_value)
-            .field("container", &self.container().name())
-            .field("is_unique", &self.is_unique)
-            .finish()
+        match self.id {
+            ScalarFieldId::InModel(id) => self.dm.walk(id).is_autoincrement(),
+            ScalarFieldId::InCompositeType(_) => false,
+        }
     }
 }
 
 impl Display for ScalarField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}", self.container().name(), self.name)
-    }
-}
-
-impl Eq for ScalarField {}
-
-impl Hash for ScalarField {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.name.hash(state);
-        self.type_identifier.hash(state);
-        self.is_id.hash(state);
-        self.is_auto_generated_int_id.hash(state);
-        self.internal_enum.hash(state);
-        self.is_updated_at.hash(state);
-        self.is_unique.hash(state);
-        self.container.hash(state);
-        self.arity.hash(state);
-        self.db_name.hash(state);
-    }
-}
-
-impl PartialEq for ScalarField {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-            && self.type_identifier == other.type_identifier
-            && self.is_id == other.is_id
-            && self.is_auto_generated_int_id == other.is_auto_generated_int_id
-            && self.internal_enum == other.internal_enum
-            && self.is_updated_at == other.is_updated_at
-            && self.default_value == other.default_value
-            && self.is_unique == other.is_unique
-            && self.container == other.container
-            && self.arity == other.arity
-            && self.db_name == other.db_name
     }
 }

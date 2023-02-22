@@ -5,22 +5,13 @@ use std::{collections::BTreeSet, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct Fields {
-    all: Vec<Field>,
     primary_key: Option<PrimaryKey>,
-    scalar: OnceCell<Vec<ScalarFieldWeak>>,
     model: ModelWeakRef,
-    updated_at: OnceCell<Vec<ScalarFieldRef>>,
 }
 
 impl Fields {
-    pub(crate) fn new(all: Vec<Field>, model: ModelWeakRef, primary_key: Option<PrimaryKey>) -> Fields {
-        Fields {
-            all,
-            primary_key,
-            scalar: OnceCell::new(),
-            updated_at: OnceCell::new(),
-            model,
-        }
+    pub(crate) fn new(model: ModelWeakRef, primary_key: Option<PrimaryKey>) -> Fields {
+        Fields { primary_key, model }
     }
 
     pub fn id(&self) -> Option<&PrimaryKey> {
@@ -40,24 +31,19 @@ impl Fields {
         }
     }
 
-    pub fn updated_at(&self) -> &Vec<ScalarFieldRef> {
-        self.updated_at.get_or_init(|| {
-            self.scalar_weak()
-                .iter()
-                .map(|sf| sf.upgrade().unwrap())
-                .filter(|sf| sf.is_updated_at)
-                .collect()
-        })
+    pub fn updated_at(&self) -> impl Iterator<Item = ScalarFieldRef> {
+        self.scalar().into_iter().filter(|sf| sf.is_updated_at())
     }
 
     pub fn scalar(&self) -> Vec<ScalarFieldRef> {
-        self.scalar_weak().iter().map(|f| f.upgrade().unwrap()).collect()
-    }
-
-    fn scalar_weak(&self) -> &[ScalarFieldWeak] {
-        self.scalar
-            .get_or_init(|| self.all.iter().fold(Vec::new(), Self::scalar_filter))
-            .as_slice()
+        let model = self.model();
+        let internal_data_model = model.internal_data_model();
+        internal_data_model
+            .walk(model.id)
+            .scalar_fields()
+            .filter(|sf| sf.scalar_field_type().as_composite_type().is_none())
+            .map(|rf| internal_data_model.clone().zip(ScalarFieldId::InModel(rf.id)))
+            .collect()
     }
 
     pub fn relation(&self) -> Vec<RelationFieldRef> {
@@ -91,38 +77,25 @@ impl Fields {
     }
 
     pub fn find_many_from_scalar(&self, names: &BTreeSet<String>) -> Vec<ScalarFieldRef> {
-        self.scalar_weak()
-            .iter()
-            .filter(|field| names.contains(&field.upgrade().unwrap().name))
-            .map(|field| field.upgrade().unwrap())
+        self.scalar()
+            .into_iter()
+            .filter(|field| names.contains(field.name()))
             .collect()
     }
 
     pub fn find_from_all(&self, prisma_name: &str) -> crate::Result<Field> {
-        self.all
-            .iter()
-            .find(|field| field.name() == prisma_name)
-            .map(Clone::clone)
-            .or_else(|| {
-                let model = self.model();
-                let internal_data_model = model.internal_data_model();
-                let id = internal_data_model
-                    .walk(model.id)
-                    .scalar_fields()
-                    .find(|sf| sf.name() == prisma_name)
-                    .map(|sf| sf.id);
-                id.map(|id| Field::from(internal_data_model.clone().zip(CompositeFieldId::InModel(id))))
-            })
-            .or_else(|| {
-                let model = self.model();
-                let internal_data_model = model.internal_data_model();
-                let id = internal_data_model
-                    .walk(model.id)
+        let model = self.model();
+        let internal_data_model = model.internal_data_model();
+        let model_walker = internal_data_model.walk(model.id);
+        model_walker
+            .scalar_fields()
+            .map(|w| Field::from((internal_data_model.clone(), w)))
+            .chain(
+                model_walker
                     .relation_fields()
-                    .find(|rf| rf.name() == prisma_name)
-                    .map(|rf| rf.id);
-                id.map(|id| Field::from(internal_data_model.clone().zip(id)))
-            })
+                    .map(|w| Field::from((internal_data_model.clone(), w))),
+            )
+            .find(|f| f.name() == prisma_name)
             .ok_or_else(|| DomainError::FieldNotFound {
                 name: prisma_name.to_string(),
                 container_name: self.model().name.clone(),
@@ -146,7 +119,7 @@ impl Fields {
     pub fn find_from_scalar(&self, name: &str) -> crate::Result<ScalarFieldRef> {
         self.scalar()
             .into_iter()
-            .find(|field| field.name == name)
+            .find(|field| field.name() == name)
             .ok_or_else(|| DomainError::ScalarFieldNotFound {
                 name: name.to_string(),
                 container_name: self.model().name.clone(),
@@ -170,7 +143,7 @@ impl Fields {
 
     fn scalar_filter(mut acc: Vec<ScalarFieldWeak>, field: &Field) -> Vec<ScalarFieldWeak> {
         if let Field::Scalar(scalar_field) = field {
-            acc.push(Arc::downgrade(scalar_field));
+            acc.push(scalar_field.clone());
         };
 
         acc
