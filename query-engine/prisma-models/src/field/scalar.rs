@@ -1,5 +1,5 @@
 use crate::{ast, parent_container::ParentContainer, prelude::*};
-use dml::{DefaultValue, FieldArity, NativeTypeInstance};
+use dml::{FieldArity, NativeTypeInstance};
 use psl::parser_database::{walkers, ScalarFieldType};
 use std::fmt::{Debug, Display};
 
@@ -104,21 +104,19 @@ impl ScalarField {
         Some(self.dm.clone().zip(enum_id))
     }
 
-    pub fn default_value(&self) -> Option<DefaultValue> {
+    pub fn default_value(&self) -> Option<dml::DefaultKind> {
         match self.id {
             ScalarFieldId::InModel(id) => {
                 let walker = self.dm.walk(id);
-                walker.default_value().map(|dv| DefaultValue {
-                    kind: dml::dml_default_kind(&dv.ast_attribute().arguments.arguments[0].value, walker.scalar_type()),
-                    db_name: None,
+                walker.default_value().map(|dv| {
+                    dml::dml_default_kind(&dv.ast_attribute().arguments.arguments[0].value, walker.scalar_type())
                 })
             }
             ScalarFieldId::InCompositeType(id) => {
                 let walker = self.dm.walk(id);
-                walker.default_value().map(|dv| DefaultValue {
-                    kind: dml::dml_default_kind(&dv, walker.scalar_type()),
-                    db_name: None,
-                })
+                walker
+                    .default_value()
+                    .map(|dv| dml::dml_default_kind(&dv, walker.scalar_type()))
             }
         }
     }
