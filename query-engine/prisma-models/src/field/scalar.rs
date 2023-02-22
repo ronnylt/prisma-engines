@@ -13,26 +13,7 @@ pub enum ScalarFieldId {
     InCompositeType((ast::CompositeTypeId, ast::FieldId)),
 }
 
-// pub struct ScalarField {
-//     pub id: ScalarFieldId,
-//     pub(crate) name: String,
-//     pub(crate) type_identifier: TypeIdentifier,
-//     pub(crate) is_auto_generated_int_id: bool,
-//     pub(crate) is_autoincrement: bool,
-//     pub(crate) is_updated_at: bool,
-//     pub(crate) internal_enum: Option<ast::EnumId>,
-//     pub(crate) arity: FieldArity,
-//     pub(crate) db_name: Option<String>,
-//     pub(crate) default_value: Option<DefaultValue>,
-//     pub(crate) native_type: Option<NativeTypeInstance>,
-//     pub(crate) container: ParentContainer,
-// }
-
 impl ScalarField {
-    pub fn internal_data_model(&self) -> InternalDataModelRef {
-        self.dm.clone()
-    }
-
     pub fn is_id(&self) -> bool {
         match self.id {
             ScalarFieldId::InModel(id) => self.dm.walk(id).is_single_pk(),
@@ -67,12 +48,11 @@ impl ScalarField {
     }
 
     pub fn is_read_only(&self) -> bool {
-        let dm = self.internal_data_model();
         let sfid = match self.id {
             ScalarFieldId::InModel(id) => id,
             ScalarFieldId::InCompositeType(_) => return false,
         };
-        let sf = dm.walk(sfid);
+        let sf = self.dm.walk(sfid);
         let mut relation_fields = sf.model().relation_fields();
         relation_fields.any(|rf| rf.fields().into_iter().flatten().any(|sf2| sf.id == sf2.id))
     }

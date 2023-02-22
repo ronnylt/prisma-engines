@@ -127,34 +127,6 @@ impl Field {
     }
 }
 
-// impl From<&Field> for FieldWeak {
-//     fn from(f: &Field) -> Self {
-//         match f {
-//             Field::Scalar(sf) => sf.into(),
-//             Field::Relation(rf) => rf.into(),
-//             Field::Composite(cf) => cf.into(),
-//         }
-//     }
-// }
-
-// impl From<&ScalarFieldRef> for FieldWeak {
-//     fn from(f: &ScalarFieldRef) -> Self {
-//         FieldWeak::Scalar(Arc::downgrade(f))
-//     }
-// }
-
-// impl From<&RelationFieldRef> for FieldWeak {
-//     fn from(f: &RelationFieldRef) -> Self {
-//         FieldWeak::Relation(f.clone())
-//     }
-// }
-
-// impl From<&CompositeFieldRef> for FieldWeak {
-//     fn from(f: &CompositeFieldRef) -> Self {
-//         FieldWeak::Composite(f.clone())
-//     }
-// }
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum TypeIdentifier {
